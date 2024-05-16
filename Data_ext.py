@@ -47,7 +47,7 @@ class DataExtractor:
                         if len(data) == float(natom)+1:  # Read two lines after encountering the header
                             break
             df = pd.DataFrame(data, columns=["No.", "Tag", "Charge", "X", "Y", "Z"])
-            df.drop(0,inplace=True)
+            #df.drop(0,inplace=True)
 
         return df,natom,nelectrons, denergy
     
@@ -65,7 +65,28 @@ class DataExtractor:
                     stack.append(char)  # Append current digit to stack
 
         return pair_count
+    def extracter_smiles(self,folder_path_smiles):
+            data=[]
+            for filename in os.listdir(folder_path_smiles):
+                if filename.endswith(".xyz"):  # Assuming files have .txt extension
+                    file_path = os.path.join(folder_path_smiles, filename)
+                    with open(file_path, 'r') as file:
+                        lines = file.readlines()
+                        smiles_code = lines[1].strip().split(":")[1]
+                        digits_list = []  # Initialize list to store digits
+                        pair_count=0
+                    # Iterate through the characters in the string
+                        for char in str(smiles_code):
+                            if char.isdigit():
+                                if char in digits_list:
+                                    digits_list.remove(char)  # Remove the digit from the list
+                                    pair_count += 1  # Increment count for number pairs
+                                else:
+                                    digits_list.append(char)  # Add the digit to the list
 
+                        num_atoms = int(lines[0].strip())  # Extract number of atoms from the first line
+                        data.append({"Filename": filename, "SMILES": smiles_code, "Num_Atoms": num_atoms,"nrings":pair_count})
+            return data
     def process_files(self):
         data = np.empty((0, 12))
         file_names = self.get_files_in_folder()
@@ -75,31 +96,26 @@ class DataExtractor:
             da=pd.Series(df.drop('No.',axis=1).value_counts('Tag')).reindex()
             element_order = ['C', 'H', 'S', 'N', 'O', 'Misc']
             for i, element in enumerate(element_order):
-                if element in da.index:
-                    globals()[element]= da[element]
-                else:
-                    globals()[element]=0
-            folder_paths = r'git_repo'
-            xyz_file = 'optimized_simplified_D18_DpiA.xyz'
-            xyz_path = os.path.join(folder_paths, xyz_file)
-            atoms, charge_read, coordinates = x2m.read_xyz_file(xyz_path)
-            mols = x2m.xyz2mol(atoms, coordinates)
-            for mol in mols:
-                c= Chem.MolToSmiles(mol)
-            number_pairs_count = self.count_number_pairs(c)
-            row = np.array([[file_name, float(natom), float(nelectrons), float(denergy), c, C,H,S,N,O,Misc,number_pairs_count]])
+                if element is not None:
+                    if element in da.index:
+                        globals()[element]= da[element]
+                    else:
+                        globals()[element]=0
+            
+            #number_pairs_count = self.count_number_pairs(c)
+            row = np.array([[file_name,natom, nelectrons, denergy, "smiley code", C,H,S,N,O,Misc,"numberofrings"]])
             data = np.append(data, row, axis=0)
             array = np.zeros((1, len(element_order)), dtype=int)
-
 
         return data
 
     def run(self):
         return self.process_files()
 
-# Usage:
 folder_path = r'xyz files'
 repo_path = r'git_repo'
 extractor = DataExtractor(folder_path, repo_path)
-result = extractor.run()
-print(result)
+result= pd.DataFrame(extractor.run())
+folder_path_smiles = r"C:\Users\Admin\nsysu\IIPP\smiles2xyz\\"
+df = pd.DataFrame(DataExtractor.extracter_smiles(DataExtractor,folder_path_smiles))
+x=2
