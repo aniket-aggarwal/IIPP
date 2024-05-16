@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
+import os
+
 
 exec(open("Data_ext.py").read())
 df1 = globals()["df"]
@@ -16,7 +18,7 @@ merged_df = pd.merge(df1, df2, on='Modified_File_name', how='inner')
 # Drop the temporary 'Modified_File_name' column
 merged_df.drop(columns=['Modified_File_name',"smiley code",'numberofrings'], inplace=True)
 merged_df.dropna(subset=['denergy'],inplace=True)
-merged_df.reset_index()
+merged_df.reset_index(inplace=True)
 
 # Function to generate fingerprint from SMILES code
 def generate_fingerprint(smiles_code):
@@ -39,3 +41,9 @@ num_bits = merged_df['Fingerprint'].iloc[0].shape[0]
 # Create a DataFrame to store individual features
 features_df = pd.DataFrame(merged_df['Fingerprint'].tolist(), columns=[f'Feature_{i+1}' for i in range(num_bits)])
 merged_df = pd.concat([merged_df, features_df], axis=1)
+merged_df.drop(["index","Filename_x","Filename_y"],axis=1,inplace=True)
+excel_file="Data_excel.xlsx"
+if os.path.exists(excel_file):
+    # If the file exists, delete it
+    os.remove(excel_file)
+merged_df.to_excel(excel_file,index=False)
